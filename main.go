@@ -12,22 +12,30 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
 var (
 	srcDir      = "./src"
 	configFiles []string
-	selectedID  = -1 // 当前选中的配置文件索引
+	selectedID  = -1    // 当前选中的配置文件索引
+	isDarkMode  = false // 标记当前是否为黑夜模式
 )
 
 func main() {
 	myApp := app.New()
+	iconPath := filepath.Join("assets", "icon.ico") // 这里使用 .ico 文件路径
+	icon, err := loadIconFromFile(iconPath)
+	if err != nil {
+		fmt.Println("加载图标失败:", err)
+		return
+	}
 	window := myApp.NewWindow("FRP 控制器")
+	window.SetIcon(icon)
 	window.Resize(fyne.NewSize(800, 600))
-
 	// 初始化目录
-	err := initDirs()
+	err = initDirs()
 	if err != nil {
 		dialog.ShowError(err, window)
 		return
@@ -66,7 +74,7 @@ func main() {
 
 	// 日志区域
 	logs := widget.NewMultiLineEntry()
-	logs.Disable() // 使日志框不可编辑
+	logs.Enable() // 使日志框不可编辑
 	logs.Wrapping = fyne.TextWrapWord
 
 	// 添加配置
@@ -83,8 +91,11 @@ func main() {
 		addVisitorButton := widget.NewButton("添加 Visitor", func() {
 			visitorName := widget.NewEntry()
 			visitorName.SetPlaceHolder("Visitor 名称")
-			visitorType := widget.NewEntry()
-			visitorType.SetPlaceHolder("类型")
+			visitorType := widget.NewSelect([]string{"xtcp", "stcp"}, func(selected string) {
+				// 可以在此添加选择后的逻辑
+			})
+			visitorType.PlaceHolder = "类型"
+
 			serverName := widget.NewEntry()
 			serverName.SetPlaceHolder("服务器名称")
 			secretKey := widget.NewEntry()
@@ -145,7 +156,7 @@ func main() {
 	
 	`,
 					visitorForm[1].(*widget.Entry).Text,
-					visitorForm[2].(*widget.Entry).Text,
+					visitorForm[2].(*widget.Select).Selected,
 					visitorForm[3].(*widget.Entry).Text,
 					visitorForm[4].(*widget.Entry).Text,
 					visitorForm[5].(*widget.Entry).Text,
@@ -165,6 +176,15 @@ func main() {
 		form.Show()
 	})
 
+	// 切换主题的按钮
+	switchThemeButton := widget.NewButton("切换主题", func() {
+		if isDarkMode {
+			myApp.Settings().SetTheme(theme.LightTheme()) // 设置白天模式
+		} else {
+			myApp.Settings().SetTheme(theme.DarkTheme()) // 设置黑夜模式
+		}
+		isDarkMode = !isDarkMode
+	})
 	// 修改配置
 	modifyConfig := func(fileName string) {
 		filePath := filepath.Join(srcDir, fileName)
@@ -287,6 +307,7 @@ func main() {
 		configActions,
 		widget.NewButton("启动 FRP", startFRP),
 		widget.NewButton("停止 FRP", stopFRP),
+		switchThemeButton,
 	)
 	listAndLogs := container.NewVSplit(configList, logs)
 	listAndLogs.SetOffset(0.5) // 上下平分
@@ -296,6 +317,24 @@ func main() {
 
 	window.SetContent(mainLayout)
 	window.ShowAndRun()
+}
+
+// 加载 .ico 文件为 Fyne 支持的图像资源
+func loadIconFromFile(path string) (fyne.Resource, error) {
+	// 打开 .ico 文件
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("打开文件失败: %v", err)
+	}
+	defer file.Close()
+
+	// 使用 Fyne 的资源加载工具来读取图标文件
+	resource, err := fyne.LoadResourceFromPath(path)
+	if err != nil {
+		return nil, fmt.Errorf("加载资源失败: %v", err)
+	}
+
+	return resource, nil
 }
 
 // 初始化目录
