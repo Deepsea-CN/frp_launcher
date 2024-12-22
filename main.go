@@ -259,24 +259,23 @@ func main() {
 			// 保存配置文件
 			fileName := "config_" + maskedAddr + ".toml"
 			content := fmt.Sprintf(`serverAddr = "%s"
-				serverPort = %s
-				auth.method = "token"
-				auth.token = "%s"
+serverPort = %s
+auth.method = "token"
+auth.token = "%s"
 
-				`,
-				serverAddr.Text, serverPort.Text, authToken.Text)
+`, serverAddr.Text, serverPort.Text, authToken.Text)
 			for _, visitor := range visitors {
 				visitorForm := visitor.(*fyne.Container).Objects
 				content += fmt.Sprintf(`[[visitors]]
-				name = "%s"
-				type = "%s"
-				serverName = "%s"
-				secretKey = "%s"
-				bindAddr = "%s"
-				bindPort = %s
-				keepTunnelOpen = %t
+name = "%s"
+type = "%s"
+serverName = "%s"
+secretKey = "%s"
+bindAddr = "%s"
+bindPort = %s
+keepTunnelOpen = %t
 
-				`,
+`,
 					visitorForm[1].(*widget.Entry).Text,
 					visitorForm[2].(*widget.Select).Selected,
 					visitorForm[3].(*widget.Entry).Text,
@@ -289,11 +288,11 @@ func main() {
 			for _, proxy := range proxies {
 				proxyForm := proxy.(*fyne.Container).Objects
 				content += fmt.Sprintf(`[[proxies]]
-				name = "%s"
-				type = "%s"
-				localAddr = "%s"
-				localPort = %s
-				`,
+name = "%s"
+type = "%s"
+localIP = "%s"
+localPort = %s
+`,
 					proxyForm[1].(*widget.Entry).Text,
 					proxyForm[2].(*widget.Select).Selected,
 					proxyForm[3].(*widget.Entry).Text,
@@ -307,6 +306,7 @@ func main() {
 				}
 				content += "\n"
 			}
+
 			err := os.WriteFile(filepath.Join(srcDir, fileName), []byte(content), 0600)
 			if err != nil {
 				dialog.ShowError(fmt.Errorf("保存配置文件失败: %v", err), window)
