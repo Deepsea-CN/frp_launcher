@@ -83,6 +83,22 @@ func main() {
 	logs := widget.NewMultiLineEntry()
 	logs.Enable() // 使日志框不可编辑
 	logs.Wrapping = fyne.TextWrapWord
+	dir := "./logs"                                   // 日志文件夹
+	logFilePath := filepath.Join(dir, "frp_logs.txt") // 保存日志的文件名
+	overwriteLogs := true                             // 设置为 true 表示每次启动清空日志
+	// 保留最新 n 行日志
+	maxLogLines := 10
+	// 更新日志显示函数
+	updateLogDisplay := func(entry *widget.Entry, newLine string) {
+		currentText := entry.Text
+		lines := strings.Split(currentText, "\n")
+		lines = append(lines, newLine)
+		if len(lines) > maxLogLines {
+			lines = lines[len(lines)-maxLogLines:]
+		}
+		// 更新日志框
+		entry.SetText(strings.Join(lines, "\n"))
+	}
 
 	// 添加配置
 	addConfigButton := widget.NewButton("新建配置", func() {
@@ -388,20 +404,36 @@ localPort = %s
 		stdout, _ := cmd.StdoutPipe()
 		stderr, _ := cmd.StderrPipe()
 
+		// 打开日志文件
+		var logFile *os.File
+		if overwriteLogs {
+			logFile, err = os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+		} else {
+			logFile, err = os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		}
+		if err != nil {
+			logs.SetText(fmt.Sprintf("无法打开日志文件: %v", err))
+			return
+		}
+		defer logFile.Close()
+
 		// 日志协程
 		go func() {
 			scanner := bufio.NewScanner(stdout)
 			for scanner.Scan() {
-				logs.SetText(logs.Text + "\n" + scanner.Text())
+				line := scanner.Text()
+				updateLogDisplay(logs, line)     // 更新界面上的日志，仅保留最新 10 行
+				logFile.WriteString(line + "\n") // 写入日志文件
 			}
 		}()
 		go func() {
 			scanner := bufio.NewScanner(stderr)
 			for scanner.Scan() {
-				logs.SetText(logs.Text + "\n" + scanner.Text())
+				line := scanner.Text()
+				updateLogDisplay(logs, line)     // 更新界面上的日志，仅保留最新 10 行
+				logFile.WriteString(line + "\n") // 写入日志文件
 			}
 		}()
-
 		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true} // 隐藏控制台窗口
 
 		err = cmd.Start()
